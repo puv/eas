@@ -1,2 +1,2 @@
-# moe
-A simple yet unique anime streaming service
+# eas
+Natural disaster aggregator website
