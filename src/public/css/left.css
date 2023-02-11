@@ -1,0 +1,38 @@
+#left {
+    display: grid;
+    border-right: 1px solid rgb(255, 255, 255);
+}
+
+#alerts {
+    display: none;
+    grid-template-rows: repeat(100, auto);
+    overflow-x: hidden;
+    max-height: 100vh;
+    overflow-y: overlay;
+}
+
+.alert {
+    display: grid;
+    grid-template-rows: auto auto;
+    width: 100%;
+    border-bottom: 1px solid rgb(255, 255, 255);
+    padding: 5px;
+    cursor: pointer;
+}
+
+.info {
+    padding: 0.5rem;
+    display: grid;
+    grid-template-columns: min-content min-content auto;
+    grid-gap: 0.5rem;
+}
+
+.time {
+    color: gray;
+    width: 50px;
+}
+
+.mag {
+    font-weight: bold;
+    width: 56px;
+}

@@ -1,0 +1,19 @@
+#right {
+    display: grid;
+    border-left: 1px solid rgb(255, 255, 255);
+    grid-template-rows: 50% 50%;
+}
+
+#info {
+    display: grid;
+    grid-template-rows: repeat(5, min-content);
+    overflow-x: hidden;
+    max-height: 50vh;
+    margin: 1em;
+}
+
+.alert-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+}

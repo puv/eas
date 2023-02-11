@@ -1,0 +1,11 @@
+body {
+    background-color: rgb(0, 0, 0);
+    display: grid;
+    grid-template-columns: 50% 50%;
+    overflow: hidden;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+}
