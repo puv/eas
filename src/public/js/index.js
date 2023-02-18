@@ -1,8 +1,10 @@
 seenAlerts = [];
 Alerts = [];
 map = null;
+_intensity = localStorage.getItem("intensity") === "true";
 
-function formatElapsedTime(ms) {
+
+function formatTime(ms) {
     const oneMinute = 60 * 1000;
     const oneHour = oneMinute * 60;
     const oneDay = oneHour * 24;
@@ -18,11 +20,21 @@ function formatElapsedTime(ms) {
     }
 }
 
+function formatDate(ms) {
+    const date = new Date(ms);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
 function GetInfo(id) {
-    console.log(id);
     const alert = Alerts.find((a) => a.id == id);
-    const { mag, place, time, url, type, title, latitude, longitude } = alert;
-    const timeAgo = formatElapsedTime(new Date() - time);
+    console.log(alert);
+    const { tag, properties: { magnitude, location, time, title, url, depth, intensity }, coordinates: { longitude, latitude } } = alert;
 
     if (map) {
         map.setView([latitude, longitude], 7);
@@ -30,91 +42,146 @@ function GetInfo(id) {
 
     document.getElementById("info").innerHTML = `
         <div class="alert-title">${title}</div>
-        <div class="alert-mag">Magnitude: ${mag}</div>
-        <div class="alert-place">Place: ${place}</div>
-        <div class="alert-time">Time: ${timeAgo} ago</div>
-        <a href="${url}" target="_blank">More Info</a>
+        <div class="alert-magnitude">Magnitude: ${magnitude.no}</div>
+        <div class="alert-location">Location: ${location}</div>
+        <div class="alert-time">Time: ${formatDate(time)}</div>
+        <div class="alert-depth">Depth: ${depth}km</div>
+        <div class="alert-coords">Coordinates: ${latitude}, ${longitude}</div>
+        <div class="alert-tag">API: ${tag}</div>
+        <div class="alert-intensity">Intensity: ${intensity.no}</div>
+        ${url.length > 0 ? `<a href="${url}" target="_blank">More Info</a>` : ""}
+        <a href="${generateGoogleMapsLink(latitude, longitude)}" target="_blank">Open in Google Maps</a>
       `;
 }
 
-async function fetchAlerts(newOnly = false) {
-    const response = await fetch(`/api/alerts?new=${newOnly}`);
-    const data = await response.json();
+function generateGoogleMapsLink(lat, lng) {
+    return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
+async function fetchAlerts(amount, _new = true) {
+    const response = await fetch(`/api/alerts?amount=${amount}`);
+    if (response.status !== 200) return console.log("Error fetching alerts");
+    let data = await response.json();
 
     if (data.length === 0) return;
 
-    // Add elements to the page with an animation
-    let container = document.getElementById("alerts");
+    let container = document.getElementById("list");
 
-    if (!newOnly) {
-        let loading = document.getElementById("left").querySelector(".loading");
+    let loading = container.parentElement.querySelector(".loading");
+    loading.style.display = "none";
+    container.style.display = "grid";
 
-        loading.style.display = "none";
-        container.style.display = "grid";
-    }
+    newAlerts = data.filter(a => !Alerts.some(b => b.id == a.id));
+    Alerts = [...Alerts, ...newAlerts];
+    FillAlerts(container, Alerts, _new);
+}
 
-    data.reverse();
-    Alerts = [...Alerts, ...data]
-    for (value of data) {
-        if (seenAlerts.includes(value.id)) continue;
-        seenAlerts.push(value.id);
-        let alert = document.createElement("div");
-        alert.classList.add("alert", "animated", "bounceInUp");
-        alert.style.background = value.background;
-        alert.setAttribute("onclick", `GetInfo("${value.id}")`);
-        let info = document.createElement("div");
-        info.classList.add("info");
-        let time = document.createElement("div");
-        time.classList.add("time");
-        time.dataset.time = value.time;
-        time.innerText = formatElapsedTime(new Date() - value.time);
-        let mag = document.createElement("div");
-        mag.classList.add("mag");
-        mag.innerText = value.mag;
-        mag.style.color = value.color;
-        let title = document.createElement("div");
-        title.classList.add("title");
-        title.innerText = value.place;
+function FillAlerts(container, data, _new) {
+    for (const value of data) {
+        const { id, properties: { time }, coordinates: { longitude, latitude } } = value;
+        if (seenAlerts.includes(id) || !latitude || !longitude) continue;
+        seenAlerts.push(id);
+        const alert = createAlert(value, _new);
 
-        info.appendChild(time);
-        info.appendChild(mag);
-        info.appendChild(title);
+        const index = Array.from(container.children).findIndex(child => {
+            return (time - child.dataset.time) > 0;
+        });
 
-        alert.appendChild(info);
-
-        container.insertBefore(alert, container.firstChild);
-
+        if (index === -1) {
+            container.appendChild(alert);
+        } else {
+            container.insertBefore(alert, container.children[index]);
+        }
         AddMarker(value);
-    };
+    }
+}
+
+function createAlert(value, _new) {
+    const { id, tag, properties: { magnitude, location, time, title, url, depth, intensity }, coordinates: { longitude, latitude } } = value;
+    let div = document.createElement("div");
+    div.setAttribute("onclick", `GetInfo('${id}')`);
+    div.setAttribute("data-time", time);
+    div.setAttribute("data-magnitude", magnitude.no);
+    console.log(value)
+    div.classList.add("alert");
+    if (_new) div.classList.add("new");
+    div.innerHTML = `
+        <div class="alert__amplitude">
+            <label>${_intensity ? "Intensity" : "Magnitude"}</label>
+            <div class="alert__amplitude__value" style="background-color: ${_intensity ? intensity.color : magnitude.color}">${_intensity ? intensity.no : magnitude.no}</div>
+        </div>
+        <div class="alert__content">
+            <div class="alert__location">${location}</div>
+            <div class="alert__1">
+                <div class="alert__time">${new Date(time).toLocaleString()}</div>
+                <div class="alert__2">
+                    <div class="alert__amplitude">${!_intensity ? `Int. ${intensity.no}` : `Mag. ${magnitude.no}`}</div>
+                    <div class="alert__depth"> Depth: <span>${parseInt(depth)} km</span></div>
+                </div>
+            </div>
+        </div>
+    `;
+    return div;
 }
 
 function AddMarker(value) {
-    let marker = L.marker([value.latitude, value.longitude], {
+    const { id, tag, properties: { magnitude, location, time, title, url, depth, intensity }, coordinates: { longitude, latitude } } = value;
+    let marker = L.marker([latitude, longitude], {
         icon: L.divIcon({
-            html: `<div onclick="GetInfo('${value.id}')" style="background-color: ${value.color}; border-radius: 50%; width: 1.5em; height: 1.5em; margin-top: -4px; margin-left: -4px; border: 1px solid black">`
-        })
+            html: `<div onclick="GetInfo('${id}')" style="background-color: ${_intensity ? intensity.color : magnitude.color}; border-radius: 50%; width: 1.5em; height: 1.5em; margin-top: -4px; margin-left: -4px; border: 1px solid black">`
+        }),
+        zIndexOffset: parseInt(intensity.no)
     }).addTo(map);
-    marker.bindPopup(`<b>${value.title}</b><br><a href="${value.url}" target="_blank">More Info</a>`);
+    marker.bindPopup(generatePopup(value));
 }
 
-// on page ready plain js
-document.addEventListener("DOMContentLoaded", function () {
-    map = L.map('map').setView([0, 0], 1);
+function generatePopup(value) {
+    const { id, tag, properties: { magnitude, location, time, title, url, depth, intensity }, coordinates: { longitude, latitude } } = value;
+    return `<b>${title}</b>
+    <br>Magnitude: ${magnitude.no}
+    <br>Time: ${formatDate(time)}
+    <br>Location: (${latitude}, ${longitude})
+    <br>Depth: ${depth}
+    <br>API: ${tag}
+    <br>Intensity: ${intensity.no}
+    ${url.length > 0 ? `<br><a href="${url}" target="_blank">More Info</a>` : ""}
+    <br><a href="${generateGoogleMapsLink(latitude, longitude)}" target="_blank">Open in Google Maps</a>`
+}
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 10,
-        minZoom: 1,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+function Switch(no) {
+    switch (no) {
+        case 0:
+            localStorage.setItem("intensity", false);
+            break;
+        case 1:
+            localStorage.setItem("intensity", true);
+            break;
+    }
+    location.reload();
+}
+document.addEventListener("DOMContentLoaded", () => {
+    map = L.map('map', { zoomControl: false }).setView([0, 80], 1);
+    map.setMaxBounds(map.getBounds());
+
+
+    L.tileLayer('https://tile.jawg.io/bc7554db-f336-44b0-98d5-8cb3ff61a317/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
+        attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">&copy; <b>Jawg</b>Maps</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        minZoom: 2,
+        maxZoom: 7,
+        accessToken: "zq0xp5qUrNhGwxRaxnfux9Ud6bYcOkyQlchf8BZmMNf9KfWEDcFbw44HUnhSxa0M"
     }).addTo(map);
 
-    fetchAlerts(false);
-    setInterval(async () => {
-        const timeAgoElements = document.querySelectorAll(".time");
-        for (e of timeAgoElements) {
-            const timeAgo = formatElapsedTime(new Date() - e.dataset.time);
-            e.innerText = timeAgo;
-        }
+    fetchAlerts(1000, false);
 
-        fetchAlerts(true);
+    document.getElementById("toggle").addEventListener("click", (toggle) => {
+        let right = document.querySelector(".overlay .right");
+        right.style.right = right.style.right === "0em" ? "-25em" : "0em";
+    });
+
+    setInterval(() => {
+        // document.querySelectorAll(".time").forEach(e => {
+        //     e.innerText = formatTime(new Date() - e.dataset.time);
+        // });
+        fetchAlerts(50);
     }, 5000);
 });

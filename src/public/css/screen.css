@@ -1,6 +1,3 @@
-@media (max-width: 900px) {
-    body {
-        grid-template-rows: 50% 50%;
-        grid-template-columns: 100%;
-    }
-}
+@media (max-width: 800px){.overlay{display:none}}
+
+/*# sourceMappingURL=screen.css.map */

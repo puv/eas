@@ -1,0 +1,20 @@
+.loading {
+    display: block;
+    border-top: 1px solid #fff;
+    border-radius: 50%;
+    width: 4rem;
+    height: 4rem;
+    animation: spin 2s linear infinite;
+    place-self: center;
+    filter: blur(0.1rem)
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
